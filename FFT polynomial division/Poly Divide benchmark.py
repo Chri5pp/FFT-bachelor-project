@@ -1,4 +1,8 @@
 from cmath import exp, pi
+import random
+import time
+import matplotlib.pyplot as plt
+
 
 def remove_trailing_zeros(A, epsilon=1e-10):
     while len(A) > 1 and abs(A[-1]) < epsilon:
@@ -78,9 +82,10 @@ def poly_divide_naive(P, Q):
     m = len(Q) - 1
     if n < m: return [0], P
 
+    
     q = [0] * (n - m + 1)
     r = P[:]
-
+    
     while len(r) >= len(Q):
         deg_diff = len(r) - len(Q)
         c = r[-1] / Q[-1] # leading coefficient for current division step
@@ -89,10 +94,10 @@ def poly_divide_naive(P, Q):
         # subtract polynomial c * Q(x) * x^deg_diff from r
         for i in range(len(Q)): 
             r[deg_diff + i] -= c * Q[i]
-            
+
         r.pop() # at least one leading coeffecient is 0
-        remove_trailing_zeros(r)
-    remove_trailing_zeros(q)
+        r = remove_trailing_zeros(r)
+    q = remove_trailing_zeros(q)
 
     return q, r
 
@@ -133,21 +138,36 @@ def poly_divide_FFT(P, Q):
 #   example usage below here
 # -----------------------------------------------------------
 
-def round_coefficients(poly):
-    return [round(coef, 10) for coef in poly]
+def benchmark():
+    sizes = [100 * k for k in range(1, 100 + 1)]  # sizes of polynomials to test
+    naive_times     = []
+    fft_times       = []
 
-poly = [1, 2, 3, 4, 5]
-divisor = [1, 2, 1]
+    def time_algorithm(func, a, b):
+        start = time.perf_counter()
+        func(a[:], b[:])  
+        return time.perf_counter() - start
 
-q, r = poly_divide_FFT(poly, divisor)
-q2, r2 = poly_divide_naive(poly, divisor)
+    
+    for n in sizes:
+        print(f"dividing n={n}", end="")
 
-print("division of", poly, "by", divisor)
+        a = remove_trailing_zeros([random.randint(0, 10) for _ in range(n)]+[1])
+        b = remove_trailing_zeros([random.randint(0, 10) for _ in range(n//2)]+[1])
+        
+        naive_times.append(time_algorithm(poly_divide_naive, a, b))
+        fft_times.append(time_algorithm(poly_divide_FFT, a, b))  
 
-print("\nFFT division:")
-print("Quotient:", round_coefficients(q))
-print("Remainder:", round_coefficients(r))
+        print(f": Done")
 
-print("\nNaive division:")
-print("Quotient:", round_coefficients(q2))
-print("Remainder:", round_coefficients(r2))
+    plt.figure()
+    plt.plot(sizes, naive_times)
+    plt.plot(sizes, fft_times)
+
+    plt.xlabel("Polynomial size (n) divisor size (n/2)")
+    plt.ylabel("Time (seconds)")
+    plt.title("Polynomial division comparison")
+    plt.legend(["Naive O(n^2)", "FFT O(n log n)"])
+    plt.show()
+
+benchmark()
