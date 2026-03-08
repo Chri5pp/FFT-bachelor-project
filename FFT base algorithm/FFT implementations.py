@@ -94,6 +94,6 @@ def iterative_IFFT(x):
 
 
 A = [1, 2, 3, 4, 0, 0, 0, 0] + [1, 2, 3, 4, 0, 0, 0, 0] 
-print("Iterative FFT(A):", [round(x.real) for x in iterative_FFT(A.copy())])
-print("recursive FFT(A):", [round(x.real) for x in recursive_FFT(A.copy())])
+print("Iterative FFT(A):", [round(x.real) for x in iterative_FFT(A[:])])
+print("recursive FFT(A):", [round(x.real) for x in recursive_FFT(A[:])])
 

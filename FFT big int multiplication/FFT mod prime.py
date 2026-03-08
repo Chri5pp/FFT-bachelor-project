@@ -81,8 +81,7 @@ def multiply_big_positive_integers(x, y):
     # this choice works up to 2^23 nth roots of unity for radix-2 FFT
     # found numbers at: https://codeforces.com/blog/entry/75326 (last visited 4/3/2026)
     p = 998244353       # 119 * 2^23 + 1
-    root = 3               # 3^{998244352} = 1 (mod 998244353)
-    # This shouldnt be hardcoded but has been done  so to demonstrate the algorithm
+    root = 3            # 3^{998244352} = 1 (mod 998244353)
 
     print(f"Multiplying x and y:\n  {x}\n  {y}")
 
@@ -90,18 +89,15 @@ def multiply_big_positive_integers(x, y):
     base_shift = max(x, y).bit_length().bit_length()
     base = 1 << base_shift  # about log2 of largest number (and a power of 2 to allow more bitwise operations)
 
-    xs = x
-    a = []
-    while xs > 0:
-        a.append(xs & (base - 1))
-        xs >>= base_shift
+    def split_number(n):
+        coef = [] 
+        while n > 0:
+            coef.append(n & (base - 1))
+            n >>= base_shift
+        return coef
 
-    ys = y
-    b = []
-    while ys > 0:
-        b.append(ys & (base - 1))
-        ys >>= base_shift
-
+    a = split_number(x)
+    b = split_number(y)
     print(f"\nRepresenting x and y in base: {base}:")
     print(f"x: {a}")
     print(f"y: {b}")
@@ -110,7 +106,6 @@ def multiply_big_positive_integers(x, y):
     # check that predefined prime is large enough to not cause unwanted overflow
     max_coeefficient = base - 1
     min_prime = (max_coeefficient ** 2) * min(len(a), len(b))
-
     if p <= min_prime:
         raise Exception(f"Prime {p} is too small. Minimum required prime is: {min_prime}")
 
@@ -118,17 +113,13 @@ def multiply_big_positive_integers(x, y):
     print(f"\nmultiplying polynomials gives:\n  {c}")
 
     # propegate carries
-    i = 0
-    while i < len(c):
-        if c[i] >= base:
-            carry = c[i] >> base_shift
-            c[i] &= base-1
-
-            if i + 1 == len(c):
-                c.append(carry)
-            else:
-                c[i + 1] += carry
-        i += 1
+    carry = 0
+    for i in range(len(c)):
+        c[i] += carry
+        carry = c[i] >> base_shift
+        c[i] &= base - 1
+    if carry:
+        c.append(carry)
 
     print(f"\npropegating carries gives:\n  {c}")
     # reconstruct c to big python number
@@ -141,4 +132,4 @@ def multiply_big_positive_integers(x, y):
     return(z)
     
 
-multiply_big_positive_integers(1234567891234578912345678912345789, 98765432198765432112345678912345789)
+multiply_big_positive_integers(12345678912345789123456789123457891234567891234578912345678912345789, 987654321987654321123456789123457891234567891234578912345678912345789)

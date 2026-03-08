@@ -109,7 +109,7 @@ def karatsuba(a, b):
     return y
 
 def benchmark():
-    sizes = [1 * k for k in range(1, 50 + 1)]  # sizes of polynomials to test
+    sizes = [10 * k for k in range(1, 50 + 1)]  # sizes of polynomials to test
     naive_times     = []
     karatsuba_times = []
     fft_times       = []
