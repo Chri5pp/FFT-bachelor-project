@@ -60,14 +60,17 @@ def mod_ifft(a, w, p):
     return [(x * n_inv) % p for x in y]
 
 
-def multiplyPolynomials_mod_prime(a, b, root, p):
+def multiply_polynomials_mod_prime(a, b, root, p):
     # pad to length of next power of 2 (that fits the result)
     n = len(a) + len(b) - 1
     n = 1 << (n - 1).bit_length()  
     a += [0] * (n - len(a))
     b += [0] * (n - len(b))
 
-    w = get_nth_root_of_unity(n, p, root) # TODO: check if length of n is valid for using this root (n is not too large >2^23)
+    if n > 1 << 23:
+        raise Exception(f"length of resulting polynomial: {n} -is too large for using the predefined root. Maximum allowed length is: {1 << 23}")
+    
+    w = get_nth_root_of_unity(n, p, root) 
     A = mod_FFT(a, w, p)
     B = mod_FFT(b, w, p)
 
@@ -109,7 +112,7 @@ def multiply_big_positive_integers(x, y):
     if p <= min_prime:
         raise Exception(f"Prime {p} is too small. Minimum required prime is: {min_prime}")
 
-    c = multiplyPolynomials_mod_prime(a, b, root, p) # where the magic happens
+    c = multiply_polynomials_mod_prime(a, b, root, p) # where the magic happens
     print(f"\nmultiplying polynomials gives:\n  {c}")
 
     # propegate carries
