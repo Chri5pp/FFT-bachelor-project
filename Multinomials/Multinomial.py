@@ -80,7 +80,7 @@ def evaluate_multilinear_fast(P, args):
 #     P_end = len(P)
 #     length = len(P)
 
-#     # eval takes no arguments!!!
+#     # eval takes no arguments :)
 #     def eval():
 #         nonlocal n_args, P_start, P_end, length
 #         if n_args == 0:
@@ -103,6 +103,10 @@ def evaluate_multilinear_fast(P, args):
 #         return E1 + E2 * args[n_args - 1]
     
 #     return eval()
+
+
+
+
 
 #------------------------------------------------------------
 #           Interpolation
@@ -150,15 +154,15 @@ def interpolate_multilinear_fast(points, a_vals, b_vals):
 
     # thus we get P0 from the first half of the points and P1 from the second half
 
-    half_terms = n_terms // 2
-    P0 = interpolate_multilinear_fast(points[:half_terms], a_vals[:-1], b_vals[:-1]) # X_n = a_n
-    P1 = interpolate_multilinear_fast(points[half_terms:], a_vals[:-1], b_vals[:-1]) # X_n = b_n
+    half = n_terms // 2
+    P0 = interpolate_multilinear_fast(points[:half], a_vals[:-1], b_vals[:-1]) # X_n = a_n
+    P1 = interpolate_multilinear_fast(points[half:], a_vals[:-1], b_vals[:-1]) # X_n = b_n
 
     res = [0] * n_terms
     recipricol_divisor = 1 / (b_vals[-1] - a_vals[-1])
-    for i in range(half_terms):
+    for i in range(half):
         res[i] = (b_vals[-1] * P0[i] - a_vals[-1] * P1[i]) * recipricol_divisor
-        res[i + half_terms] = (P1[i] - P0[i]) * recipricol_divisor
+        res[i + half] = (P1[i] - P0[i]) * recipricol_divisor
 
     return res
 
