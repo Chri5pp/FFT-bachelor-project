@@ -28,15 +28,6 @@ random.seed(1234)
 def random_multilinear(n_args):
     return [random.randint(-9, 10) for _ in range(1 << n_args)]
 
-def get_all_args(a_vals, b_vals):
-    points = []
-    for i in range(1 << len(a_vals)):
-        point = []
-        for j in range(len(a_vals)):
-            point.append(b_vals[j] if (i >> j) & 1 else a_vals[j])
-        points.append(point)
-    return points
-
 
 
 
@@ -45,64 +36,44 @@ def get_all_args(a_vals, b_vals):
 #           Evaluation
 #------------------------------------------------------------
 
-def evaluate_multilinear_naive(P, args):
-    n_args = len(args)
+def evaluate_multilinear_naive(P, a_vals, b_vals):
+    n_args = len(a_vals)
     n_terms = len(P)
     
-    result = 0
-    for i in range(n_terms):
-        term = P[i]
-        for j in range(n_args):
-            term *= args[j] if (i >> j) & 1 else 1
-        result += term
+    result = [0] * n_terms
+
+    for k in range(n_terms): # individually calculate the result for all k points
+        for i in range(n_terms):
+            term = P[i]
+            for j in range(n_args):
+                if (i >> j) & 1:
+                    arg = b_vals[j] if (k >> j) & 1 else a_vals[j] # arguments depends in the kth point we evaluate at
+                    term *= arg
+            result[k] += term
 
     return result
 
-def evaluate_multilinear_fast(P, args):
-    n_args = len(args)
-    P_start = 0
-    P_end = len(P)
+def evaluate_multilinear_fast(P, a_vals, b_vals):
+    n_args = len(a_vals)
+    n_terms = len(P)
 
-    def eval(P, args, P_start, P_end, n_args):
-        if n_args == 0:
-            return P[P_start]
-
-        half = (P_end - P_start) // 2
-        E1 = eval(P, args, P_start, P_start + half, n_args - 1)
-        E2 = eval(P, args, P_start + half, P_end, n_args - 1)
-        return E1 + E2 * args[n_args - 1]
+    if n_args == 0:
+        return P
     
-    return eval(P, args, P_start, P_end, n_args)
+    half = n_terms // 2
+    Q0 = evaluate_multilinear_fast(P[:half], a_vals[:-1], b_vals[:-1])
+    Q1 = evaluate_multilinear_fast(P[half:], a_vals[:-1], b_vals[:-1]) # multiplied by X_n
 
-# def evaluate_multilinear_fast(P, args):
-#     n_args = len(args)
-#     P_start = 0
-#     P_end = len(P)
-#     length = len(P)
+    result = [0] * n_terms
 
-#     # eval takes no arguments :)
-#     def eval():
-#         nonlocal n_args, P_start, P_end, length
-#         if n_args == 0:
-#             return P[P_start]
+    # P = Q0 + X_n * Q1 
+    # X_n = a_n for the first half of the points 
+    # X_n = b_n for the second half of the points
+    for i in range(half):
+        result[i]        = Q0[i] + Q1[i] * a_vals[-1]
+        result[i + half] = Q0[i] + Q1[i] * b_vals[-1]
 
-#         n_args -= 1
-#         length >>= 1
-
-#         P_end -= length
-#         E1 = eval()
-#         P_end += length
-
-#         P_start += length
-#         E2 = eval()
-#         P_start -= length
-
-#         length <<= 1
-#         n_args += 1
-
-#         return E1 + E2 * args[n_args - 1]
-    
-#     return eval()
+    return result
 
 
 
@@ -112,7 +83,9 @@ def evaluate_multilinear_fast(P, args):
 #           Interpolation
 #------------------------------------------------------------
 
-def interpolate_multilinear_binary_fast(points): # assumes are evaluated at [1,0,0], [0,1,0], [1,1,0]... 
+def interpolate_multilinear_binary_fast(points):
+     # assumes a_vals = [0,0...] and b_vals = [1,1,...]
+     # no need for floating point division since the divisor is always 1
     n_terms = len(points)
 
     if n_terms == 1:
@@ -159,10 +132,9 @@ def interpolate_multilinear_fast(points, a_vals, b_vals):
     P1 = interpolate_multilinear_fast(points[half:], a_vals[:-1], b_vals[:-1]) # X_n = b_n
 
     res = [0] * n_terms
-    recipricol_divisor = 1 / (b_vals[-1] - a_vals[-1])
     for i in range(half):
-        res[i] = (b_vals[-1] * P0[i] - a_vals[-1] * P1[i]) * recipricol_divisor
-        res[i + half] = (P1[i] - P0[i]) * recipricol_divisor
+        res[i]        = (b_vals[-1] * P0[i] - a_vals[-1] * P1[i]) / (b_vals[-1] - a_vals[-1])
+        res[i + half] = (P1[i] - P0[i])                           / (b_vals[-1] - a_vals[-1])
 
     return res
 
@@ -199,10 +171,11 @@ def multiply_multilinear_fast(P, Q):
     n_args = len(P).bit_length() - 1
     n_terms = len(P)
 
-    args = get_all_args([0] * n_args, [1] * n_args)
+    a_vals = [0] * n_args
+    b_vals = [1] * n_args
     
-    P_points = [evaluate_multilinear_fast(P, arg) for arg in args]
-    Q_points = [evaluate_multilinear_fast(Q, arg) for arg in args]
+    P_points = evaluate_multilinear_fast(P, a_vals, b_vals)
+    Q_points = evaluate_multilinear_fast(Q, a_vals, b_vals)
     
     points = [P_points[i] * Q_points[i] for i in range(n_terms)]
 
@@ -216,35 +189,41 @@ def multiply_multilinear_fast(P, Q):
 #------------------------------------------------------------
 #           Tests
 #------------------------------------------------------------
-def test_evaluation():
-    poly = random_multilinear(4)
-    args = [1, 0, 1, 1]
+def title(text, width=30):
+    print("\n" + "=" * width)
+    print(f"    {text}")
+    print("=" * width)
 
-    naive_result = evaluate_multilinear_naive(poly, args)
-    fast_result = evaluate_multilinear_fast(poly, args)
+def test_evaluation():
+    title("Evaluation test")
+    poly = random_multilinear(4)
+    a_vals = [0, 0, 0, 0]
+    b_vals = [1, 1, 1, 1]
+
+    naive_result = evaluate_multilinear_naive(poly, a_vals, b_vals)
+    fast_result = evaluate_multilinear_fast(poly, a_vals, b_vals)
 
     print("Coefficients:", poly)
     print("Naive evaluation result:", naive_result)
-    print("Fast evaluation result:", fast_result)
+    print("Fast evaluation result: ", fast_result)
 
 def test_multilinear_interpolation():
-    poly = random_multilinear(3)
-    a_n = [0,3,0]
-    b_n = [1,2,6]
+    title("Interpolation test")
+    poly = random_multilinear(4)
+    a_vals = [0, 0, 0, 0]
+    b_vals = [1, 1, 1, 1]
 
-    # evaluate at all points in the hypercube defined by a_n and b_n
-    args = get_all_args(a_n, b_n)
-    points = [evaluate_multilinear_fast(poly, arg) for arg in args]
+    points = evaluate_multilinear_fast(poly, a_vals, b_vals)
+    recovered_poly = interpolate_multilinear_fast(points, a_vals, b_vals)
+    recovered_poly = [round(coef) for coef in recovered_poly] # round to nearest integer since we know the original coefficients are integers
 
-    # interpolate to over all points to recover the coefficients
-    recovered_poly = interpolate_multilinear_fast(points, a_n, b_n)
-
-    print("Original coefficients:", poly)
+    print("Original coefficients: ", poly)
     print("Recovered coefficients:", recovered_poly)
 
 def test_multilinear_multiplication():
-    poly1 = random_multilinear(3)
-    poly2 = random_multilinear(3)
+    title("Multiplication test")
+    poly1 = random_multilinear(4)
+    poly2 = random_multilinear(4)
 
     product_naive = multiply_multilinear_naive(poly1, poly2)
     product_fast = multiply_multilinear_fast(poly1, poly2)
@@ -252,8 +231,8 @@ def test_multilinear_multiplication():
     print("Poly 1 coefficients:", poly1)
     print("Poly 2 coefficients:", poly2)
     print("Naive product coefficients:", product_naive)
-    print("Fast product coefficients:", product_fast)
+    print("Fast product coefficients: ", product_fast)
 
 test_evaluation()
-#test_multilinear_interpolation()
-#test_multilinear_multiplication()
+test_multilinear_interpolation()
+test_multilinear_multiplication()
