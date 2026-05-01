@@ -1,7 +1,4 @@
 import random
-from unittest import result
-
-from numpy import half
 random.seed(1234)
 
 #------------------------------------------------------------
